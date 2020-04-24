@@ -1,0 +1,65 @@
+version: 2
+jobs:
+  pr_check:
+    docker:
+      - image: circleci/python:2.7-jessie
+    steps:
+      - checkout
+      - run:
+          name: Install packages
+          command: sudo apt-get update && sudo apt-get install wget zip unzip -y
+      - run:
+          name: Install awscli
+          command: sudo pip install awscli
+      - run:
+          name: Download packer
+          command: |
+            wget -q https://releases.hashicorp.com/packer/1.3.4/packer_1.3.4_linux_amd64.zip
+            unzip packer*.zip
+            chmod +x packer
+      - run:
+          name: Validate Packer Template
+          command: ./packer validate ami.json
+  build:
+    docker:
+      - image: circleci/python:2.7-jessie
+    steps:
+      - checkout
+      - run:
+          name: Install packages
+          command: sudo apt-get update && sudo apt-get install wget zip unzip -y
+      - run:
+          name: Install awscli
+          command: sudo pip install awscli
+      - run:
+          name: Download packer
+          command: |
+            wget -q https://releases.hashicorp.com/packer/1.3.4/packer_1.3.4_linux_amd64.zip 
+            unzip packer*.zip  
+            chmod +x packer
+      - run:
+          name: Validate Packer Template
+          command: ./packer validate ami.json
+      - run:
+          name: Build AMI
+          command: |
+            ./packer build \
+            -var "aws_access_key=${aws_access_key}" \
+            -var "aws_secret_key=${aws_secret_key}" \
+            -var "aws_region=${AWS_REGION}" \
+            -var "s3_bucket=${S3_Bucket}" \
+            -var "account_ids=${account_ids}" \
+            -var "source_ami=${source_ami}" \
+             ami.json
+workflows:
+  version: 2
+  pr-check-workflow:
+    jobs:
+      - pr_check
+  build-deploy-workflow:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
